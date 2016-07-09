@@ -1,12 +1,12 @@
-param (
-    # $WimFile = "C:\temp\deleteme\sources\install.wim"
-    $WimFile = "D:\sources\install.wim"
-)
 
 function New-MfVhd {
     param (
-        [Parameter(Mandatory=$true)]
-        $WimFile
+        $SourcePath = "D:\sources\install.wim",
+        $Edition = "SERVERSTANDARDCORE",
+        $VhdPath = "C:\vm\servercore2012r2",
+        $SizeBytes = "127GB",
+        $DiskLayout = "BIOS",
+        $ExpandOnNativeBoot = $false
     )
     # From https://github.com/Microsoft/Virtualization-Documentation
     # Specifically https://github.com/Microsoft/Virtualization-Documentation/tree/master/hyperv-tools/Convert-WindowsImage
@@ -16,18 +16,10 @@ function New-MfVhd {
 
     # NOTE: I kept getting the following error; it turns out my iso file was corrupt. Its SHA1 signature didn't match MSDN
     #   Convert-WindowsImage : The file or directory is corrupted and unreadable. (Exception from HRESULT: 0x80070570)
-    # Convert-WindowsImage -WorkingDirectory "C:\vm" -SourcePath $WimFile -SizeBytes 127GB -DiskLayout BIOS -ExpandOnNativeBoot:$false -Edition Standard
-    Convert-WindowsImage -WorkingDirectory "C:\vm" -SourcePath $WimFile -SizeBytes 127GB -DiskLayout BIOS -ExpandOnNativeBoot:$false -Edition Standard
-
-    # Got this error, looks like it means boot wasn't set up
-    # Convert-WindowsImage : The variable '$systemDrive' cannot be retrieved because it has not been set.
-    # At C:\Users\Jim.AD\Documents\git\MidFredVmPlay\NewWinVM.ps1:10 char:1
-    # + Convert-WindowsImage -WorkingDirectory "C:\vm" -SourcePath $WimFile - ...
-    # + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    #     + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
-    #     + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Convert-WindowsImage
-
-    # Convert-WindowsImage -VhdPath c:\vm\Win2012r2.vhdx -SourcePath $WimFile -SizeBytes 127GB -DiskLayout UEFI -ExpandOnNativeBoot:$false -Edition Standard
+    # NOTE: To find the Editions, run the following. -Edition can either match the last of the name or be the index number
+    #  dism /get-imageinfo /imagefile:path/to/wimfile.wim
+    # Convert-WindowsImage -VhdPath $VhdPath -WorkingDirectory "C:\vm" -SourcePath $WimFile -SizeBytes 127GB -DiskLayout BIOS -ExpandOnNativeBoot:$false -Edition $Edition
+    Convert-WindowsImage @PSBoundParameters
 
 }
 
@@ -37,5 +29,5 @@ function New-MfVm {
     Get-VM win2012 | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName Internal-ICS-NAT
 }
 
-# New-MfVhd $WimFile
+# New-MfVhd
 # New-MfVm
