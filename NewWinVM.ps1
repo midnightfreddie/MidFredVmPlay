@@ -3,9 +3,9 @@ function New-MfVhd {
     param (
         $SourcePath = "D:\sources\install.wim",
         $Edition = "SERVERSTANDARDCORE",
-        $VhdPath = "C:\vm\servercore2012r2",
-        $SizeBytes = "127GB",
-        $DiskLayout = "BIOS",
+        $VhdPath = "C:\vm\servercore2012r2.vhdx",
+        $SizeBytes = 127GB,
+        $DiskLayout = "UEFI",
         $ExpandOnNativeBoot = $false
     )
     # From https://github.com/Microsoft/Virtualization-Documentation
@@ -19,13 +19,22 @@ function New-MfVhd {
     # NOTE: To find the Editions, run the following. -Edition can either match the last of the name or be the index number
     #  dism /get-imageinfo /imagefile:path/to/wimfile.wim
     # Convert-WindowsImage -VhdPath $VhdPath -WorkingDirectory "C:\vm" -SourcePath $WimFile -SizeBytes 127GB -DiskLayout BIOS -ExpandOnNativeBoot:$false -Edition $Edition
-    Convert-WindowsImage @PSBoundParameters
+    $Parameters = @{
+        SourcePath = $SourcePath
+        Edition = $Edition
+        VhdPath = $VhdPath
+        SizeBytes = $SizeBytes
+        DiskLayout = $DiskLayout
+        ExpandOnNativeBoot = $ExpandOnNativeBoot
+    }
+    Convert-WindowsImage @Parameters
 
 }
 
 # Using for reference: http://www.tomsitpro.com/articles/hyper-v-powershell-cmdlets,2-779.html
 function New-MfVm {
-    New-VM -Name Win2012 -VHDPath C:\vm\9600.17415.amd64fre.winblue_r4.141028-1500_Server_ServerStandard_en-US.vhd -MemoryStartupBytes 1024mb
+    # Must be Gen 2 to boot UEFI from vhdx
+    New-VM -Name Win2012 -VHDPath C:\vm\servercore2012r2.vhdx -MemoryStartupBytes 1024mb -Generation 2
     Get-VM win2012 | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName Internal-ICS-NAT
 }
 
