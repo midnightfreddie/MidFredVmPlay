@@ -5,14 +5,16 @@ param (
 
 function New-MfVhd {
     param (
-        [Param(Mandatory=$true)]
+        [Parameter(Mandatory=$true)]
         $WimFile
     )
     # From https://github.com/Microsoft/Virtualization-Documentation
     # Specifically https://github.com/Microsoft/Virtualization-Documentation/tree/master/hyperv-tools/Convert-WindowsImage
     Import-Module Convert-WindowsImage
 
-    Convert-WindowsImage -WorkingDirectory "C:\vm" -SourcePath $WimFile -SizeBytes 127GB -DiskLayout BIOS -ExpandOnNativeBoot:$false -Edition Standard
+    # NOTE: I kept getting the following error; it turns out my iso file was corrupt. Its SHA1 signature didn't match MSDN
+    #   Convert-WindowsImage : The file or directory is corrupted and unreadable. (Exception from HRESULT: 0x80070570)
+    # Convert-WindowsImage -WorkingDirectory "C:\vm" -SourcePath $WimFile -SizeBytes 127GB -DiskLayout BIOS -ExpandOnNativeBoot:$false -Edition Standard
 
     # Got this error, looks like it means boot wasn't set up
     # Convert-WindowsImage : The variable '$systemDrive' cannot be retrieved because it has not been set.
@@ -21,12 +23,16 @@ function New-MfVhd {
     # + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     #     + CategoryInfo          : NotSpecified: (:) [Write-Error], WriteErrorException
     #     + FullyQualifiedErrorId : Microsoft.PowerShell.Commands.WriteErrorException,Convert-WindowsImage
+
+    Convert-WindowsImage -VhdPath c:\vm\Win2012r2.vhdx -SourcePath $WimFile -SizeBytes 127GB -DiskLayout UEFI -ExpandOnNativeBoot:$false -Edition Standard
+
 }
 
+# Using for reference: http://www.tomsitpro.com/articles/hyper-v-powershell-cmdlets,2-779.html
 function New-MfVm {
-    New-VM -Name Win2012 -VHDPath C:\vm\Win2012r2.vhd -MemoryStartupBytes 1024mb
+    New-VM -Name Win2012 -VHDPath C:\vm\Win2012r2.vhdx -MemoryStartupBytes 1024mb
     Get-VM win2012 | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName Internal-ICS-NAT
 }
 
-# New-MfVhd $WimFile
-# New-MfVm
+New-MfVhd $WimFile
+New-MfVm
