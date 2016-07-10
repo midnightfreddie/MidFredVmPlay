@@ -29,6 +29,7 @@ function New-MfUnattend {
     $Xml = [xml](Get-Content $PSScriptRoot\unattend.xml)
     # $Xml.unattend.SelectSingleNode("AccountData")
     ($Xml | Select-Xml -XPath "//unns:AccountData" -Namespace $NameSpace | Select-Object -First 1).Node.InnerXml = $AccountData
+    # ($Xml | Select-Xml -XPath "//unns:AccountData" -Namespace $NameSpace | Select-Object -First 1).Node.InnerText = $AccountData
     ($Xml | Select-Xml -XPath "//unns:AdministratorPassword/unns:Value" -Namespace $NameSpace | Select-Object -First 1).Node.InnerXml = $AdminPassword
     ($Xml | Select-Xml -XPath "//unns:RegisteredOwner" -Namespace $NameSpace | Select-Object -First 1).Node.InnerXml = $RegisteredOwner
     ($Xml | Select-Xml -XPath "//unns:RegisteredOrganization" -Namespace $NameSpace | Select-Object -First 1).Node.InnerXml = $RegisteredOrganization
@@ -86,11 +87,18 @@ $VmName | ForEach-Object {
     $VhdPath = "c:\vm\{0}.vhdx" -f $PSItem
     $UnattendFile = New-Item -ItemType File -Path ("{0}\{1}-unattend.xml" -f $PSScriptRoot, $PSItem)
     # djoin.exe requires /savefile , so I'll use this xml file I just created and then immediately overwrite it
-    # redirecting djoin success/stdout to verbose
-    & djoin.exe /provision /domain $JoinDomain /machine $PSItem /savefile "$($UnattendFile.FullName)" /reuse 1>&4
-    $AccountData = Get-Content $UnattendFile
+    & djoin.exe /provision /domain $JoinDomain /machine $PSItem /savefile "$($UnattendFile.FullName)" /reuse
+    # $AccountData = ((Get-Content $UnattendFile) | Out-String) -replace 0x00
+    # $AccountData = (Get-Content $UnattendFile -Encoding UTF8) -replace 0x00
+    # For some reason there is a null at the end of this string
+    $AccountData = (Get-Content $UnattendFile).Trim(0x00)
+    # $AccountData[0]
+    # $AccountData[1]
+    # $AccountData[2]
+    # $AccountData
     (New-MfUnattend -AccountData $AccountData -AdminPassword $VmAdminCred.GetNetworkCredential().Password ).OuterXml |
         Set-Content -Path $UnattendFile.FullName
+    # break
 
     New-MfVhd -UnattendPath $UnattendFile.FullName -VhdPath $VhdPath
     New-MfVm -VhdPath $VhdPath -VmName $PSItem
