@@ -85,16 +85,18 @@ function New-MfVm {
 $VmName | ForEach-Object {
     $VhdPath = "c:\vm\{0}.vhdx" -f $PSItem
     $UnattendFile = New-Item -ItemType File -Path ("{0}\{1}-unattend.xml" -f $PSScriptRoot, $PSItem)
-    # Encrypt the file so only the user running the script can read it
-    #   although it will be unencrypted when copied into the vhdx.
-    $UnattendFile.Encrypt()
-    # djoin.exe requires /savevile , so I'll use this xml file I just created and then immediately overwrite it
-    $AccountData = & djoin.exe /provision /domain $JoinDomain /machine $PSItem /savefile "$($UnattendFile.FullName)" /reuse /printblob
+    # djoin.exe requires /savefile , so I'll use this xml file I just created and then immediately overwrite it
+    # redirecting djoin success/stdout to verbose
+    & djoin.exe /provision /domain $JoinDomain /machine $PSItem /savefile "$($UnattendFile.FullName)" /reuse 1>&4
+    $AccountData = Get-Content $UnattendFile
     (New-MfUnattend -AccountData $AccountData -AdminPassword $VmAdminCred.GetNetworkCredential().Password ).OuterXml |
         Set-Content -Path $UnattendFile.FullName
 
     New-MfVhd -UnattendPath $UnattendFile.FullName -VhdPath $VhdPath
     New-MfVm -VhdPath $VhdPath -VmName $PSItem
     Start-VM -Name $PSItem
+    # Encrypt the file so only the user running the script can read it
+    #   although it will be unencrypted when copied into the vhdx.
+    $UnattendFile.Encrypt()
     # Remove-Item $UnattendFile
 }

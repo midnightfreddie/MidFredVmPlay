@@ -18,7 +18,7 @@
                     <PlainText>true</PlainText>
                 </AdministratorPassword>
             </UserAccounts>
-            <TimeZone>Central Time (U.S. and Canada)</TimeZone>
+            <TimeZone>Central Standard Time</TimeZone>
         </component>
     </settings>
  
