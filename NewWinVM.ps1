@@ -1,5 +1,10 @@
 [CmdletBinding()]
 param (
+    # [Parameter(Mandatory=$true)]
+    # [ValidateNotNullOrEmpty()]
+    # [string[]]
+    $VmName = "VmScriptedTest",
+    $JoinDomain = "ad.xpoo.net",
     $VmAdminCred = (Get-Credential -UserName "Administrator" -Message "Enter password for new VM's local admin account. The username isn't used here.")
 )
 
@@ -38,7 +43,10 @@ function New-MfVhd {
         $VhdPath = "C:\vm\servercore2012r2.vhdx",
         $SizeBytes = 127GB,
         $DiskLayout = "UEFI",
-        $ExpandOnNativeBoot = $false
+        $ExpandOnNativeBoot = $false,
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        $UnattendPath
     )
     # From https://github.com/Microsoft/Virtualization-Documentation
     # Specifically https://github.com/Microsoft/Virtualization-Documentation/tree/master/hyperv-tools/Convert-WindowsImage
@@ -53,18 +61,40 @@ function New-MfVhd {
         SizeBytes = $SizeBytes
         DiskLayout = $DiskLayout
         ExpandOnNativeBoot = $ExpandOnNativeBoot
+        UnattendPath = $UnattendPath
     }
     Convert-WindowsImage @Parameters
 }
 
 # Using for reference: http://www.tomsitpro.com/articles/hyper-v-powershell-cmdlets,2-779.html
 function New-MfVm {
-    # [CmdletBinding()]
-    New-VM -Name Win2012 -VHDPath C:\vm\servercore2012r2.vhdx -MemoryStartupBytes 1024mb -Generation 2
-    Get-VM win2012 | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName Internal-ICS-NAT
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        $VmName,
+        [Parameter(Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
+        $VhdPath
+    )
+    New-VM -Name $VmName -VHDPath $VhdPath -MemoryStartupBytes 1024mb -Generation 2 |
+        Get-VMNetworkAdapter |
+        Connect-VMNetworkAdapter -SwitchName Internal-ICS-NAT
 }
 
-# New-MfVhd
-# New-MfVm
-(New-MfUnattend -AccountData "__accountdata__" -AdminPassword $VmAdminCred.GetNetworkCredential().Password ).OuterXml
-# New-MfUnattend
+$VmName | ForEach-Object {
+    $VhdPath = "c:\vm\{0}.vhdx" -f $PSItem
+    $UnattendFile = New-Item -ItemType File -Path ("{0}\{1}-unattend.xml" -f $PSScriptRoot, $PSItem)
+    # Encrypt the file so only the user running the script can read it
+    #   although it will be unencrypted when copied into the vhdx.
+    $UnattendFile.Encrypt()
+    # djoin.exe requires /savevile , so I'll use this xml file I just created and then immediately overwrite it
+    $AccountData = & djoin.exe /provision /domain $JoinDomain /machine $PSItem /savefile "$($UnattendFile.FullName)" /reuse /printblob
+    (New-MfUnattend -AccountData $AccountData -AdminPassword $VmAdminCred.GetNetworkCredential().Password ).OuterXml |
+        Set-Content -Path $UnattendFile.FullName
+
+    New-MfVhd -UnattendPath $UnattendFile.FullName -VhdPath $VhdPath
+    New-MfVm -VhdPath $VhdPath -VmName $PSItem
+    Start-VM -Name $PSItem
+    # Remove-Item $UnattendFile
+}
