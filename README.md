@@ -1,7 +1,16 @@
-# MidFredVmPlay
-Trying to wean myself off of the Hyper-V GUI
+# midightFreddie VM Play
+Trying to
+
+- Wean myself off of the Hyper-V GUI
+- Deploy (a) functional server(s) without ever connecting via RDP or vmconnect
 
 This code is still very rough and not for general use.
+
+## Notes
+
+- Client machines (Win7/8/10) will need Remote Server Administration Tools installed
+- UEFI boot in VMs supported only in generation 2 VMs, in Server 2012 **R2** and later or **64-bit** Windows 8 or later
+- I'm developing this on a Windows 10 box with Hyper-V and intend to deploy to Hyper-V Server 2012 R2 when I have it all sorted out
 
 ## Lessons Learned
 
