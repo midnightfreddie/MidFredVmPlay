@@ -11,3 +11,4 @@ This code is still very rough and not for general use.
 
 - Found a bug in `Convert-WindowsImage` when using `-DiskLayout BIOS`, fixed and submitted pull request. Decided to use UEFI, anyway.
 - UEFI boot in Hyper-V requires a Generation 2 VM: `New-Vm -Generation 2` or else it will fail to boot properly.
+- To list the editions available in a wim file for the `-Edition` parameter: `dism /get-imageinfo /imagefile:path/to/wimfile.wim`
