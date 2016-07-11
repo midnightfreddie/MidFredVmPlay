@@ -5,7 +5,8 @@ param (
     # [string[]]
     $VmName = "VmScriptedTest",
     $JoinDomain = "ad.xpoo.net",
-    $VmAdminCred = (Get-Credential -UserName "Administrator" -Message "Enter password for new VM's local admin account. The username isn't used here.")
+    $VmAdminCred = (Get-Credential -UserName "Administrator" -Message "Enter password for new VM's local admin account. The username isn't used here."),
+    $SourceVhd = "C:\vm\servercore2012-copyme.vhdx"
 )
 
 # Load basic unattend.xml template and fill in some values
@@ -41,13 +42,15 @@ function New-MfVhd {
     param (
         $SourcePath = "D:\sources\install.wim",
         $Edition = "SERVERSTANDARDCORE",
-        $VhdPath = "C:\vm\servercore2012r2.vhdx",
-        $SizeBytes = 127GB,
-        $DiskLayout = "UEFI",
-        $ExpandOnNativeBoot = $false,
         [Parameter(Mandatory=$true)]
         [ValidateNotNullOrEmpty()]
-        $UnattendPath
+        $VhdPath,
+        $SizeBytes = 127GB,
+        $DiskLayout = "UEFI",
+        $ExpandOnNativeBoot = $false
+        # [Parameter(Mandatory=$true)]
+        # [ValidateNotNullOrEmpty()]
+        # $UnattendPath
     )
     # From https://github.com/Microsoft/Virtualization-Documentation
     # Specifically https://github.com/Microsoft/Virtualization-Documentation/tree/master/hyperv-tools/Convert-WindowsImage
@@ -62,7 +65,7 @@ function New-MfVhd {
         SizeBytes = $SizeBytes
         DiskLayout = $DiskLayout
         ExpandOnNativeBoot = $ExpandOnNativeBoot
-        UnattendPath = $UnattendPath
+        # UnattendPath = $UnattendPath
     }
     Convert-WindowsImage @Parameters
 }
@@ -83,6 +86,8 @@ function New-MfVm {
         Connect-VMNetworkAdapter -SwitchName Internal-ICS-NAT
 }
 
+# New-MfVhd -VhdPath "C:\vm\servercore2012-copyme.vhdx"
+
 $VmName | ForEach-Object {
     $VhdPath = "c:\vm\{0}.vhdx" -f $PSItem
     $UnattendFile = New-Item -ItemType File -Path ("{0}\{1}-unattend.xml" -f $PSScriptRoot, $PSItem)
@@ -92,19 +97,15 @@ $VmName | ForEach-Object {
     # $AccountData = (Get-Content $UnattendFile -Encoding UTF8) -replace 0x00
     # For some reason there is a null at the end of this string
     $AccountData = (Get-Content $UnattendFile).Trim(0x00)
-    # $AccountData[0]
-    # $AccountData[1]
-    # $AccountData[2]
-    # $AccountData
     (New-MfUnattend -AccountData $AccountData -AdminPassword $VmAdminCred.GetNetworkCredential().Password ).OuterXml |
         Set-Content -Path $UnattendFile.FullName
-    # break
 
-    New-MfVhd -UnattendPath $UnattendFile.FullName -VhdPath $VhdPath
-    New-MfVm -VhdPath $VhdPath -VmName $PSItem
-    Start-VM -Name $PSItem
+    # New-MfVhd -VhdPath $VhdPath
+    Copy-Item -Path $SourceVhd -Destination $VhdPath
+    # New-MfVm -VhdPath $VhdPath -VmName $PSItem
+    # Start-VM -Name $PSItem
     # Encrypt the file so only the user running the script can read it
     #   although it will be unencrypted when copied into the vhdx.
-    $UnattendFile.Encrypt()
+    # $UnattendFile.Encrypt()
     # Remove-Item $UnattendFile
 }
