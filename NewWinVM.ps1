@@ -5,7 +5,7 @@ param (
     # [string[]]
     $VmName = "VmScriptedTest2",
     $JoinDomain = "ad.xpoo.net",
-    $VmAdminCred = (Get-Credential -UserName "Administrator" -Message "Enter password for new VM's local admin account. The username isn't used here."),
+    # $VmAdminCred = (Get-Credential -UserName "Administrator" -Message "Enter password for new VM's local admin account. The username isn't used here."),
     $SourceVhd = "C:\vm\servercore2012-copyme.vhdx"
 )
 
@@ -98,9 +98,16 @@ $VmName | ForEach-Object {
 
     # New-MfVhd -VhdPath $VhdPath
     Copy-Item -Path $SourceVhd -Destination $VhdPath
-    $VhdMount = Mount-VHD -Path $DjoinBlobFile.FullName -Passthru | Get-Disk | Get-Partition | Get-Volume
-    & djoin.exe /requestodj /loadfile "$($DjoinBlobFile.FullName)" /windowspath ("{0}\Windows" -f $VhdMount.DriveLetter)
+    
+    # Mount vhd(x) and join domain offline
+    $VhdMount = Mount-VHD -Path $VhdPath -Passthru | Get-Disk | Get-Partition | Get-Volume
+    & djoin.exe /requestodj /loadfile "$($DjoinBlobFile.FullName)" /windowspath ("{0}:\Windows" -f $VhdMount.DriveLetter)
+    Dismount-VHD -Path $VhdPath
+
+    # Create and start VM
     New-MfVm -VhdPath $VhdPath -VmName $PSItem
     Start-VM -Name $PSItem
-    # Remove-Item $DjoinBlobFile
+
+    # Cleanup
+    Remove-Item $DjoinBlobFile
 }
