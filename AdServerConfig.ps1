@@ -20,7 +20,7 @@ configuration DsController {
                 "{0}" -in (Get-NetIPAddress -InterfaceAlias Ethernet | Select-Object -ExpandProperty IPAddress)
             }) -f $IPv4Address
             GetScript = {
-                @{ Result = (Get-NetIPAddress -InterfaceAlias Ethernet | Select-Object -ExpandProperty IPAddress) -join ", " }
+                @{ Result = (Get-NetIPAddress -InterfaceAlias Ethernet -AddressFamily IPv4 | Select-Object -ExpandProperty IPAddress) -join ", " }
             }
         }
 
@@ -32,9 +32,17 @@ configuration DsController {
                 "{0}" -in (Get-NetIPAddress -InterfaceAlias Ethernet | Select-Object -ExpandProperty IPAddress)
             }) -f $IPv6Address
             GetScript = {
-                @{ Result = (Get-NetIPAddress -InterfaceAlias Ethernet | Select-Object -ExpandProperty IPAddress) -join ", " }
+                @{ Result = (Get-NetIPAddress -InterfaceAlias Ethernet -AddressFamily IPv6 | Select-Object -ExpandProperty IPAddress) -join ", " }
             }
         }
+
+        Script TimeZone {
+            SetScript = { & tzutil.exe /s "Central Standard Time" }
+            TestScript = { "Central Standard Time" -eq (& tzutil.exe /g) }
+            GetScript = {
+                @{ Result = & tzutil.exe /g }
+            }
+        }        
 
         # WindowsFeature ADDSInstall {
         #     Ensure = "Present"
