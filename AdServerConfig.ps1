@@ -1,9 +1,12 @@
 configuration DsController {
     param (
         $ComputerName = "freddievm1",
-        $IPv4Address = "192.168.137.245",
-        $IPv6Address = "fd43:4834:bd2d::245"
+        $IPLastOctet = "245",
+        $IPv4Prefix = "192.168.137.",
+        $IPv6Prefix = "fd43:4834:bd2d::"
     )
+    $IPv4Address = "$IPv4Prefix$IPLastOctet"
+    $IPv6Address = "$IPv6Prefix$IPLastOctet"
     Node $ComputerName {
         LocalConfigurationManager {
             ActionAfterReboot = 'ContinueConfiguration'
@@ -33,6 +36,27 @@ configuration DsController {
             }) -f $IPv6Address
             GetScript = {
                 @{ Result = (Get-NetIPAddress -InterfaceAlias Ethernet -AddressFamily IPv6 | Select-Object -ExpandProperty IPAddress) -join ", " }
+            }
+        }
+
+        Script AdvertiseRoute {
+            SetScript = ({
+                Get-NetRoute -InterfaceAlias Ethernet -AddressFamily IPv6 |
+                    Where-Object {{ $PSItem.DestinationPrefix -match "{0}" }} |
+                    Set-NetRoute -Publish Yes
+            }) -f $IPv6Prefix
+            TestScript = ({
+                (Get-NetRoute -InterfaceAlias Ethernet -AddressFamily IPv6 | Where-Object {{ $PSItem.DestinationPrefix -eq "{0}/64" }}).Publish -eq "Yes"
+            }) -f $IPv6Prefix
+            GetScript = {
+                @{ Result = Get-NetRoute -InterfaceAlias Ethernet -AddressFamily IPv6 | Select-Object Publish, DestinationPrefix | Format-List }
+            }
+        }
+        Script EnableAdvertising {
+            SetScript = { Get-NetIPInterface -InterfaceAlias Ethernet -AddressFamily IPv6 | Set-NetIPInterface -Advertising Enabled }
+            TestScript = { (Get-NetIPInterface -InterfaceAlias Ethernet -AddressFamily IPv6).Advertising -eq "Enabled" }
+            GetScript = {
+                @{ Result = Get-NetIPInterface -InterfaceAlias Ethernet -AddressFamily IPv6 | Select-Object Advertising, AddressFamily, InterfaceAlias | Format-List }
             }
         }
 
